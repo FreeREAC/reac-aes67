@@ -350,12 +350,46 @@ Notes:
 - `a=ptime:1` (1 ms) is a common AES67 default; receivers such as PipeWire
   accept it.
 - The `o=` line uses a fixed session id/version of `1` — adequate for a static
-  description.
-- This is a description generator, not an announcement service: there is no
-  built-in SAP/mDNS/SDP-over-multicast advertisement. Distribute the SDP to
-  receivers out of band, or configure receivers directly with the group, port,
-  format (`L24`), rate, and channel count.
-- Live (`--listen`) streams also publish runtime state over ubus as
-  `reac-aes67.<name>` with a single `status` method; the LuCI Status view polls
-  these. ubus is the discovery surface for live state; SDP is the static media
-  description.
+  description (but see *stale-origin pitfall* below for the live SAP case).
+- `--print-sdp` is the *description generator* (stdout only, no socket). A live
+  `--listen` stream additionally **announces** that SDP over SAP — see
+  §5.1 — and publishes runtime state over ubus as `reac-aes67.<name>` with a
+  single `status` method; the LuCI Status view polls these. ubus is the
+  discovery surface for live state; SDP is the static media description.
+
+### 5.1 Being seen by AES67 / Dante gear
+
+A live stream is announced with **SAP** (RFC 2974, on by default; disable with
+`--no-sap`). Whether stock third-party gear actually sees the announcement
+depends on three things — all already handled by the daemon, but worth
+understanding for a deployment:
+
+- **SAP group / dialect.** The plain AES67 path announces to the well-known
+  **`224.0.0.56:9875`**, which PipeWire's `module-rtp-sap` scans by default —
+  fine Linux-to-Linux. Most stock **AES67/Dante** equipment instead scans the
+  AES67 SAP group **`239.255.255.255:9875`** (the `--profile dante` path
+  announces there). If a hardware receiver does not discover the stream, the
+  group it scans is the first thing to check: PipeWire's default group is not
+  the one Dante Controller listens on.
+- **Dante needs an RFC 7273 clock.** Dante will not lock an AES67 flow from a
+  free-running sender. It requires the **PTP clock declared in the SDP**
+  (`a=ts-refclk:ptp=IEEE1588-2008:…` + `a=mediaclk:direct=…`, RFC 7273) **and**
+  a stream whose RTP timestamps are actually PTP-locked — i.e. the
+  `--profile dante` path (PTP-locked clock + per-flow RFC 7273 SDP), not the
+  casual default. Plain Linux/PipeWire receivers do not need this.
+- **Stale-origin pitfall.** A SAP receiver pins the **first** SDP it sees for a
+  given stream *name* and ignores later changes — so if the stream's parameters
+  change, a receiver that already cached the old description keeps using it. The
+  daemon avoids this by hashing the rendered SDP into the SAP message id and
+  re-deriving it whenever anything changes, so a changed stream looks like a new
+  announcement rather than a silently-ignored update. If you script SDP
+  generation by hand, do the same: bump the `o=` session version and vary the
+  SAP id when the description changes, never re-announce a changed stream under
+  the original origin.
+
+Net: Linux/PipeWire receivers discover the stream as soon as it is announced on
+the group they scan; AES67/Dante hardware additionally needs the AES67 group
+plus the RFC 7273 PTP clock and a PTP-locked stream (the `--profile dante`
+path). You can always distribute the `--print-sdp` output out of band and
+configure a receiver directly with the group, port, format (`L24`), rate, and
+channel count.

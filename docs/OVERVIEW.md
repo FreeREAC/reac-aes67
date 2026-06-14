@@ -56,6 +56,28 @@ loss, the clock advances by the lost sample span *and* the bridge emits
 concealment packets in the gap, so a single dropped packet does not slip
 every subsequent sample out of alignment across channels.
 
+## The desk picks the clock — the bridge follows it
+
+REAC has a **single clock master** (typically the V-Mixer console), and on
+the desk that master clock is **selectable**: the front panel exposes a
+clock-source selector with **word clock**, **REAC A**, **REAC B**,
+**internal**, and **AES** options (observed on the console's clock-source
+menu; a desk with two REAC ports presents both A and B as candidates). The
+bridge has no say in this — it only **observes** whatever clock the desk is
+running and recovers the rate from the wire cadence. Two practical
+consequences:
+
+- **The chosen source sets the rate the bridge must be told.** Whichever
+  source is selected (an external word clock, a slaved REAC port, or the
+  internal oscillator) is what drives the fabric word clock, and the bridge
+  cannot detect the rate from a single frame (see *Verified facts*). Set
+  `--rate` to match the rate the desk is actually clocking at.
+- **A bridge or repeater must not fight the desk's clock.** Everything on
+  the fabric is genlocked to the master's chosen source; the bridge holds
+  output and keeps counting across the master's deliberate transmit gaps
+  rather than resyncing to a gap, so it stays phase-aligned with the desk
+  instead of inventing its own timing.
+
 ## Use cases
 
 ### Record or monitor REAC inputs on a Linux host
