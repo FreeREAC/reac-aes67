@@ -7,9 +7,16 @@
 SAME real capture. Two implementations agreeing on the real bytes is far
 stronger than either alone.
 
-The Python side replicates obs-h8819 convert_to_pcm24lep (the documented REAC
-de-interleave) directly from the pcap frames — it does NOT call the C code.
-Then it compares against `reac-aes67 --dump-samples`.
+The Python side de-interleaves the audio region itself, straight from the pcap
+frames — its own parser, extraction and sign-extension, no C code — then
+compares against `reac-aes67 --dump-samples`. It uses the M-5000's plain
+sequential little-endian layout (channel ch / time-sample s at byte
+(s*n_ch + ch)*3), the same layout reac_decode.c targets. This is DELIBERATELY
+not obs-h8819's braided convert_to_pcm24lep (even = bytes 3,0,1; odd = 4,5,2):
+that braid is faithful to obs-h8819's device but scrambles the M-5000's payload
+into noise (verified on-rig 2026-06-06 — plain LE: coherence 0.999; braid:
+noise). The cross-check still guards the C decoder against offset, endianness
+and sign-extension regressions.
 
 Usage: cross_verify.py <reac-aes67-binary> <fixture.pcap>
 Exit 0 if every sample of every frame matches; nonzero + diff otherwise.
@@ -40,14 +47,9 @@ def py_decode_frames(pcap_path, n_ch=40, ns=12):
             audio = raw[50:50 + n_ch * ns * 3]
             samples = []
             for ch in range(n_ch):
-                base = (ch & ~1) * 3
                 for s in range(ns):
-                    sp = base + s * (n_ch * 3)
-                    if (ch & 1) == 0:
-                        b = [audio[sp + 3], audio[sp + 0], audio[sp + 1]]
-                    else:
-                        b = [audio[sp + 4], audio[sp + 5], audio[sp + 2]]
-                    v = b[0] | (b[1] << 8) | (b[2] << 16)
+                    sp = (s * n_ch + ch) * 3  # plain sequential LE (M-5000 layout)
+                    v = audio[sp] | (audio[sp + 1] << 8) | (audio[sp + 2] << 16)
                     if v & 0x800000:
                         v -= 1 << 24
                     samples.append(v)
