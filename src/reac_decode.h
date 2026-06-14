@@ -11,7 +11,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "reac_mode.h"
+#include <reac/reac.h>
 
 struct reac_frame {
 	uint16_t counter;   /* l2_counter, little-endian */

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "../src/tone.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 static int32_t load24(const uint8_t *p)

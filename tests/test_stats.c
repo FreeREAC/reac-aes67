@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include "../src/pipeline.h"
 #include "../src/pcap_source.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 static void noop_emit(void *ctx, const uint8_t *b, size_t l, int c)

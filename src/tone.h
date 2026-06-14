@@ -12,7 +12,7 @@
 #define TONE_H
 
 #include <stdint.h>
-#include "reac_mode.h"
+#include <reac/reac.h>
 
 struct tone {
 	double phase;     /* running phase, radians, advanced across packets */

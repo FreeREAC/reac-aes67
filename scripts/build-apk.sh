@@ -34,16 +34,28 @@ cd "$SDK_DIR"
 [ -d feeds/luci ] || { cp feeds.conf.default feeds.conf; ./scripts/feeds update -a >/tmp/feeds.log 2>&1 || { tail -20 /tmp/feeds.log; exit 1; }; ./scripts/feeds install luci-base >/dev/null 2>&1 || true; }
 
 echo "== stage packages present in this repo =="
-rm -rf package/reac-* package/luci-app-reac-*
+rm -rf package/reac-* package/luci-app-reac-* package/libreac
 # Purge stale reac apks from the shared SDK bin/ (the cache persists across repo
 # builds) so out/ only ever holds packages THIS repo produced this run.
 find bin -name '*.apk' -iname '*reac*' -delete 2>/dev/null || true
 PKGS=""
+# libreac dependency: the FreeREAC C tools DEPENDS +libreac. Clone the canonical
+# source (cached in /work) and stage its package so the SDK builds it first
+# (Build/InstallDev populates the staging headers + lib the tools compile against).
+LIBREAC_SRC="$WORK/libreac-src"
+[ -d "$LIBREAC_SRC/.git" ] || git clone -q --depth 1 https://github.com/FreeREAC/libreac "$LIBREAC_SRC" || true
+if [ -d "$LIBREAC_SRC/openwrt/libreac" ]; then
+  mkdir -p package/libreac/src package/libreac/include/reac
+  cp "$LIBREAC_SRC/openwrt/libreac/Makefile" package/libreac/Makefile
+  cp "$LIBREAC_SRC/src/reac.c"               package/libreac/src/reac.c
+  cp "$LIBREAC_SRC/include/reac/reac.h"      package/libreac/include/reac/reac.h
+  PKGS="$PKGS libreac"; echo "staged libreac (dependency)"
+fi
 if [ -d "$REPO/openwrt/reac-aes67" ] && ls "$REPO"/src/*.c >/dev/null 2>&1; then
   mkdir -p package/reac-aes67/src package/reac-aes67/files
   cp "$REPO/openwrt/reac-aes67/Makefile" package/reac-aes67/Makefile
   cp "$REPO"/src/*.c "$REPO"/src/*.h package/reac-aes67/src/
-  cp "$REPO"/openwrt/files/reac-aes67.config "$REPO"/openwrt/files/reac-aes67.init "$REPO"/openwrt/files/capabilities-reac-aes67.json package/reac-aes67/files/
+  cp "$REPO"/openwrt/files/reac-aes67.config "$REPO"/openwrt/files/reac-aes67.init "$REPO"/openwrt/files/capabilities-reac-aes67.json "$REPO"/openwrt/files/reac-aes67.8 package/reac-aes67/files/
   PKGS="$PKGS reac-aes67"
 fi
 if [ -d "$REPO/openwrt/reac-repacer" ] && [ -f "$REPO/tools/reac_repacer.c" ]; then
@@ -82,5 +94,10 @@ echo "== artifacts =="
 mkdir -p "$OUT_DIR"; rm -f "$OUT_DIR"/*.apk
 # Copy only the apks for the packages this repo staged + built (scoped to $PKGS),
 # never a blanket reac glob — keeps each repo's release free of cross-repo apks.
-for pkg in $PKGS; do find bin -name "${pkg}-*.apk" -exec cp {} "$OUT_DIR/" \; ; done
+# Match both the plain name (reac-aes67-*.apk) and the ABI-versioned form a
+# library package installs under (libreac -> libreac0-*.apk), so a shared lib's
+# apk is collected alongside the tools that depend on it.
+for pkg in $PKGS; do
+  find bin \( -name "${pkg}-*.apk" -o -name "${pkg}[0-9]*-*.apk" \) -exec cp {} "$OUT_DIR/" \;
+done
 ls -la "$OUT_DIR/"; echo "$REL" > "$OUT_DIR/.openwrt-release"

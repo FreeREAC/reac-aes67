@@ -5,15 +5,8 @@
 
 #include "reac_decode.h"
 
-const struct reac_mode REAC_MODE_48K = { 48000, 40, 12 };
-/* 96k model SETTLED (2026-06-06) — candidate (a) double-pps {96000,40,12}.
- * On-rig the 96k stream measured ~8000 pps carrying the same 1492 B frame
- * (1440 B audio = 40 ch x 12 samples x 3 B), matching reacdriver REACConstants.h
- * (SAMPLES_PER_PACKET=12, PACKETS_PER_SECOND=8000, MAX_CHANNEL_COUNT=40). The
- * channel-halving model (b) {96000,20,24} would have been ~4000 pps / 20 ch;
- * both the measured pps and the byte layout refuted it. Frame is rate-invariant;
- * rate = pps x 12. */
-const struct reac_mode REAC_MODE_96K = { 96000, 40, 12 };
+/* The REAC mode descriptors (REAC_MODE_44K1 / 48K / 96K) and the geometry
+ * constants now live in libreac — see <reac/reac.h>. */
 
 struct reac_frame reac_frame_inspect(const uint8_t *raw, size_t len,
                                      const struct reac_mode *mode)

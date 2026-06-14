@@ -26,7 +26,7 @@
 #define PLC_H
 
 #include <stdint.h>
-#include "reac_mode.h"
+#include <reac/reac.h>
 
 #define PLC_HIST_SAMPLES 40 /* >= S(max 24) + crossfade margin; static, per channel */
 

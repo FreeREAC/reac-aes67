@@ -3,7 +3,7 @@
 
 #include <string.h>
 #include "../src/rtp_l24.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 /* A tiny 2-channel, 2-sample mode for hand-checkable interleave/endianness. */

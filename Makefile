@@ -16,15 +16,19 @@
 CC      ?= cc
 CROSS   ?=
 CFLAGS  ?= -O2 -Wall -Wextra -std=c11
+# libreac: a sibling checkout of github.com/FreeREAC/libreac (native build compiles
+# its source in; the OpenWrt build links the libreac package via DEPENDS).
+LIBREAC ?= ../libreac
 SRCDIR   = src
 TESTDIR  = tests
 BUILDDIR = build
+INC      = -I$(SRCDIR) -I$(LIBREAC)/include
 
 CORE_SRCS = $(SRCDIR)/reac_decode.c $(SRCDIR)/media_clock.c $(SRCDIR)/pcap_source.c \
             $(SRCDIR)/rtp_l24.c $(SRCDIR)/plc.c $(SRCDIR)/pipeline.c \
             $(SRCDIR)/aes67_send.c $(SRCDIR)/reac_capture.c $(SRCDIR)/sdp.c $(SRCDIR)/sap.c \
             $(SRCDIR)/ubus_stats.c $(SRCDIR)/tone.c $(SRCDIR)/ptp_clock.c \
-            $(SRCDIR)/packetizer.c
+            $(SRCDIR)/packetizer.c $(LIBREAC)/src/reac.c
 LDLIBS  ?= -lm
 TEST_SRCS = $(wildcard $(TESTDIR)/test_*.c)
 TEST_BINS = $(patsubst $(TESTDIR)/%.c,$(BUILDDIR)/%,$(TEST_SRCS))
@@ -44,12 +48,12 @@ $(BUILDDIR)/.dir:
 	@touch $@
 
 $(DAEMON): $(SRCDIR)/main.c $(CORE_SRCS) | $(BUILDDIR)/.dir
-	$(CROSS)$(CC) $(CFLAGS) -I$(SRCDIR) -o $@ $(SRCDIR)/main.c $(CORE_SRCS) $(LDLIBS)
+	$(CROSS)$(CC) $(CFLAGS) $(INC) -o $@ $(SRCDIR)/main.c $(CORE_SRCS) $(LDLIBS)
 
 # Each test binary links the whole core (small) for simplicity.
 # Pattern restricted to test_% so it never collides with the daemon name.
 $(BUILDDIR)/test_%: $(TESTDIR)/test_%.c $(CORE_SRCS) | $(BUILDDIR)/.dir
-	$(CROSS)$(CC) $(CFLAGS) -I$(SRCDIR) -o $@ $< $(CORE_SRCS) $(LDLIBS)
+	$(CROSS)$(CC) $(CFLAGS) $(INC) -o $@ $< $(CORE_SRCS) $(LDLIBS)
 
 test: $(TEST_BINS) $(DAEMON)
 	@fail=0; \

@@ -23,7 +23,7 @@
 #include "pcap_source.h"
 #include "reac_capture.h"
 #include "reac_decode.h"
-#include "reac_mode.h"
+#include <reac/reac.h>
 #include "pipeline.h"
 #include "aes67_send.h"
 #include "ubus_stats.h"
@@ -40,10 +40,7 @@ static void on_sigint(int sig) { (void)sig; g_stop = 1; }
 
 static int parse_ipport(const char *s, char *ip, size_t ipcap, uint16_t *port);
 
-static const struct reac_mode *mode_for(int rate)
-{
-	return rate == 96000 ? &REAC_MODE_96K : &REAC_MODE_48K;
-}
+/* mode selection moved to libreac: reac_mode_for() (44.1 / 48 / 96 kHz). */
 
 /* ---- emit callbacks ---- */
 static void emit_udp(void *ctx, const uint8_t *buf, size_t len, int concealed)
@@ -540,7 +537,7 @@ int main(int argc, char **argv)
 {
 	const char *pcap = NULL, *iface = NULL, *udp = NULL, *name = NULL;
 	const char *origin = "0.0.0.0";
-	int rate = 48000, do_dump = 0, do_count = 0, do_sdp = 0, ttl = 1;
+	int rate = 48000, rate_auto = 0, do_dump = 0, do_count = 0, do_sdp = 0, ttl = 1;
 	int plc_xfade = 0, plc_fade = 0, do_sap = 1; /* SAP discovery on by default */
 	int gen_tone = 0, tone_freq = 440, tone_detune = 0;
 	const char *iface_egress = NULL; /* pin multicast egress (e.g. br-lan) */
@@ -557,7 +554,10 @@ int main(int argc, char **argv)
 		if (!strcmp(argv[i], "--pcap") && i + 1 < argc) pcap = argv[++i];
 		else if (!strcmp(argv[i], "--listen") && i + 1 < argc) iface = argv[++i];
 		else if (!strcmp(argv[i], "--udp") && i + 1 < argc) udp = argv[++i];
-		else if (!strcmp(argv[i], "--rate") && i + 1 < argc) rate = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "--rate") && i + 1 < argc) {
+			const char *rv = argv[++i];
+			if (!strcmp(rv, "auto")) rate_auto = 1; else rate = atoi(rv);
+		}
 		else if (!strcmp(argv[i], "--pt") && i + 1 < argc) { pt = (uint8_t)atoi(argv[++i]); pt_set = 1; }
 		else if (!strcmp(argv[i], "--ssrc") && i + 1 < argc) ssrc = (uint32_t)strtoul(argv[++i], NULL, 16);
 		else if (!strcmp(argv[i], "--ttl") && i + 1 < argc) ttl = atoi(argv[++i]);
@@ -593,7 +593,23 @@ int main(int argc, char **argv)
 		}
 		if (!pt_set) pt = 96; /* Dante commonly uses dynamic PT 96 */
 	}
-	const struct reac_mode *mode = mode_for(rate);
+	/* --rate auto: measure the live packet rate and snap it (--listen only). */
+	if (rate_auto && !profile_dante) {
+		if (iface) {
+			struct reac_capture dc;
+			if (reac_capture_open(&dc, iface) == 0) {
+				int d = reac_detect_rate_fd(dc.fd, 1500);
+				reac_capture_close(&dc);
+				if (d > 0) { rate = d; fprintf(stderr, "auto-rate: detected %d Hz\n", rate); }
+				else fprintf(stderr, "auto-rate: no REAC traffic on %s; using %d Hz\n", iface, rate);
+			} else {
+				fprintf(stderr, "auto-rate: cannot capture on %s (CAP_NET_RAW?); using %d Hz\n", iface, rate);
+			}
+		} else {
+			fprintf(stderr, "auto-rate needs --listen; using %d Hz\n", rate);
+		}
+	}
+	const struct reac_mode *mode = reac_mode_for(rate);
 
 	if (do_sdp && profile_dante) {
 		struct reac_flow flows[REAC_MAX_CHANNELS];

@@ -20,7 +20,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "reac_mode.h"
+#include <reac/reac.h>
 
 #define RTP_HEADER_LEN 12
 #define RTP_VERSION 2

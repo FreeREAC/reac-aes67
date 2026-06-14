@@ -15,7 +15,7 @@
 #include "../src/pipeline.h"
 #include "../src/pcap_source.h"
 #include "../src/aes67_send.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 static const char *fixture(void)

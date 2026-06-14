@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=reac-aes67
-PKG_VERSION:=0.2.1
+PKG_VERSION:=0.3.0
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Pau Aliagas <linuxnow@gmail.com>
 PKG_LICENSE:=GPL-3.0-or-later
@@ -21,7 +21,7 @@ define Package/reac-aes67
   CATEGORY:=Sound
   TITLE:=REAC to AES67 bridge
   URL:=https://github.com/FreeREAC/reac-aes67
-  DEPENDS:=+libubus +libblobmsg-json
+  DEPENDS:=+libreac +libubus +libblobmsg-json
 endef
 
 define Package/reac-aes67/description
@@ -45,7 +45,8 @@ endef
 # -DHAVE_UBUS enables the real libubus stats binding (ubus_stats.c); without it
 # the daemon builds the no-op stub and the -lubus link would be unused.
 define Build/Compile
-	$(TARGET_CC) $(TARGET_CFLAGS) -std=c11 -O2 -DHAVE_UBUS -I$(PKG_BUILD_DIR)/src \
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c11 -O2 -DHAVE_UBUS \
+		-I$(PKG_BUILD_DIR)/src -I$(STAGING_DIR)/usr/include \
 		-o $(PKG_BUILD_DIR)/reac-aes67 \
 		$(PKG_BUILD_DIR)/src/main.c \
 		$(PKG_BUILD_DIR)/src/reac_decode.c \
@@ -62,7 +63,7 @@ define Build/Compile
 		$(PKG_BUILD_DIR)/src/tone.c \
 		$(PKG_BUILD_DIR)/src/ptp_clock.c \
 		$(PKG_BUILD_DIR)/src/packetizer.c \
-		-lubus -lblobmsg_json -lubox -lm
+		-L$(STAGING_DIR)/usr/lib -lreac -lubus -lblobmsg_json -lubox -lm
 endef
 
 define Package/reac-aes67/install
@@ -74,6 +75,9 @@ define Package/reac-aes67/install
 	$(INSTALL_BIN) ./files/reac-aes67.init $(1)/etc/init.d/reac-aes67
 	$(INSTALL_DIR) $(1)/etc/capabilities
 	$(INSTALL_CONF) ./files/capabilities-reac-aes67.json $(1)/etc/capabilities/reac-aes67.json
+	$(INSTALL_DIR) $(1)/usr/share/man/man8
+	gzip -9nc ./files/reac-aes67.8 > $(PKG_BUILD_DIR)/reac-aes67.8.gz
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/reac-aes67.8.gz $(1)/usr/share/man/man8/reac-aes67.8.gz
 endef
 
 $(eval $(call BuildPackage,reac-aes67))

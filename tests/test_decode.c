@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "../src/reac_decode.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 /* Loads the first REAC frame (full ethernet bytes) from the shared fixture.

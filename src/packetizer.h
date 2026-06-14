@@ -20,7 +20,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "reac_mode.h"
+#include <reac/reac.h>
 
 #define PACKETIZER_MAX_FPP 4   /* Dante 1 ms @ 48 kHz = 4 REAC frames */
 

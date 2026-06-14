@@ -6,7 +6,7 @@
 #include "../src/pipeline.h"
 #include "../src/pcap_source.h"
 #include "../src/reac_decode.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 /* collect emitted packets */

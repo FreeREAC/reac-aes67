@@ -20,7 +20,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "reac_mode.h"
+#include <reac/reac.h>
 #include "media_clock.h"
 #include "rtp_l24.h"
 #include "plc.h"

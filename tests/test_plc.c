@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "../src/plc.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 static void store24(uint8_t *p, int32_t x)

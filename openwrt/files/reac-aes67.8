@@ -1,0 +1,137 @@
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\" Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+.TH REAC-AES67 8 "2026-06-14" "reac-aes67 0.3.0" "System Manager's Manual"
+.SH NAME
+reac-aes67 \- bridge a Roland REAC stream to AES67 (RTP L24 multicast)
+.SH SYNOPSIS
+.B reac-aes67
+.B \-\-listen
+.I IFACE
+.B \-\-udp
+.I GROUP:PORT
+.RB [ \-\-rate
+.IR auto | 48000 | 96000 | 44100 ]
+.RI [ options ]
+.br
+.B reac-aes67
+.B \-\-pcap
+.I FILE
+.RB ( \-\-udp
+.IR GROUP:PORT " | " \-\-dump\-samples " | " \-\-count\-rtp )
+.br
+.B reac-aes67
+.B \-\-print\-sdp
+.B \-\-udp
+.I GROUP:PORT
+.RI [ options ]
+.SH DESCRIPTION
+.B reac-aes67
+decodes a Roland REAC stream (audio-over-Ethernet, EtherType 0x8819) captured on a LAN
+interface and re-emits all 40 channels as an AES67 RTP L24 multicast stream that
+PipeWire and other AES67 receivers can subscribe to \(em to record, monitor, or route.
+It is receive-only on REAC: it never transmits a REAC frame, so it cannot disturb a
+live wired REAC link.
+.PP
+reac-aes67 decodes the master's DOWNSTREAM broadcast \(em the program the console
+sends out, a fixed 40-channel frame that is rate-invariant (40 ch x 12 samples at
+every rate; the sample rate is the packet rate, pps = rate / 12: 3675 / 4000 / 8000 at
+44.1 / 48 / 96 kHz). A stagebox's UPSTREAM return is different: it carries the box's
+own input count (variable per box, a smaller frame) and its channel map is
+FPGA-scrambled, so decoding that is out of scope here. See the REAC wire-format
+reference at
+.UR https://github.com/FreeREAC/reac-protocol
+.UE .
+.SH OPTIONS
+.SS Source (one required)
+.TP
+.BI \-\-listen " IFACE"
+Live AF_PACKET capture on IFACE. Needs CAP_NET_RAW (root, or the packaged
+capabilities file on OpenWrt).
+.TP
+.BI \-\-pcap " FILE"
+Replay a classic libpcap capture through the full pipeline (no real-time pacing).
+.TP
+.B \-\-gen\-tone
+Emit a synthetic 40-channel tone (bench test; no REAC hardware). Requires --udp.
+.SS Output
+.TP
+.BI \-\-udp " GROUP:PORT"
+AES67 RTP destination (multicast group + UDP port). Required for every sending mode;
+no default. Egress goes to whichever network owns the route to GROUP \(em put GROUP on
+a separate bridge/VLAN from REAC.
+.TP
+.BI \-\-rate " auto|48000|96000|44100"
+REAC sample rate. With
+.B auto
+(\-\-listen only) the rate is measured from the live packet cadence and snapped to the
+nearest standard rate; otherwise set it explicitly to match the clock master. Default
+48000.
+.TP
+.BI \-\-name " NAME"
+Stream / SDP session name. Default REAC.
+.TP
+.BI \-\-pt " N"
+RTP payload type. Default 97.
+.TP
+.BI \-\-ssrc " HEX"
+RTP SSRC, parsed as hex. Default 11223344.
+.TP
+.BI \-\-ttl " N"
+Multicast TTL (minimum 1). Default 1.
+.TP
+.BI \-\-origin " IP"
+SDP origin (o=) IP. Default 0.0.0.0.
+.TP
+.B \-\-bcast\-only
+Decode only the master broadcast (downstream), ignoring the unicast upstream return \(em
+use when both directions share the capture interface.
+.TP
+.BI \-\-iface " DEV"
+Pin the multicast egress interface (otherwise route-table-driven).
+.TP
+.BI \-\-plc\-xfade " N" ", " \fB\-\-plc\-fade\fP " N"
+Packet-loss-concealment crossfade / fade window (\-\-listen only).
+.TP
+.B \-\-no\-sap
+Disable the periodic SAP announcement (RFC 2974 AES67 discovery; on by default).
+.SS Inspect / offline
+.TP
+.B \-\-print\-sdp
+Print the RFC 4566 / AES67 SDP for the stream (needs --udp) and exit.
+.TP
+.B \-\-dump\-samples
+Decode a --pcap and print 24-bit samples per frame (no RTP).
+.TP
+.B \-\-count\-rtp
+Decode a --pcap and print the RTP / concealed packet counts.
+.SS Dante-interop profile
+.TP
+.B \-\-profile dante
+48 kHz, 1 ms packets, up to 8-channel flows, RFC 7273 SDP to the Dante SAP group;
+needs a PTPv2-slaved bridge. See also
+.BR \-\-aes67\-base ", " \-\-rtp\-port ", " \-\-ch\-per\-flow ", " \-\-gmid ", " \-\-ptp\-domain .
+.SH RECORDING A WIRED REAC NETWORK
+To record a mixer's REAC channels off an existing wired link without disturbing it: tap
+the desk's REAC output non-intrusively \(em a desk REAC split / mirror output (best), a
+passive 100-Mbit Ethernet TAP, or a clean unmanaged 100BASE-TX switch \(em then run
+.B reac-aes67 \-\-listen
+on that tap, keeping the AES67 egress on a separate interface from the tap. reac-aes67
+only listens on REAC, so the wired link is unaffected. Match
+.B \-\-rate
+to the desk (or use
+.BR \-\-rate " " auto ).
+This captures the console's downstream OUTPUT program (the 40-channel broadcast). A
+stagebox's own inputs travel UPSTREAM with the box's channel count and an
+FPGA-scrambled map \(em a different, open case. The full recipe is recipe (f) in the
+project's docs/EXAMPLES.md.
+.SH FILES
+.TP
+.I /etc/config/reac-aes67
+UCI configuration (OpenWrt): one
+.B stream
+section per REAC zone.
+.SH SEE ALSO
+.BR reac-repacer (8)
+(Wi-Fi de-jitter relay). The FreeREAC project:
+.UR https://github.com/FreeREAC
+.UE .

@@ -6,7 +6,7 @@
 #include <string.h>
 #include "../src/packetizer.h"
 #include "../src/rtp_l24.h"
-#include "../src/reac_mode.h"
+#include <reac/reac.h>
 #include "test_util.h"
 
 /* small hand-checkable mode: 4 channels, 2 samples/frame */
