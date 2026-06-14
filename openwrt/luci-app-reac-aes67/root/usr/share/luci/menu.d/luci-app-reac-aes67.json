@@ -1,0 +1,28 @@
+{
+	"admin/services/reac-aes67": {
+		"title": "REAC → AES67",
+		"order": 60,
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-reac-aes67" ]
+		}
+	},
+	"admin/services/reac-aes67/status": {
+		"title": "Status",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "reac-aes67/status"
+		}
+	},
+	"admin/services/reac-aes67/streams": {
+		"title": "Streams",
+		"order": 2,
+		"action": {
+			"type": "view",
+			"path": "reac-aes67/streams"
+		}
+	}
+}

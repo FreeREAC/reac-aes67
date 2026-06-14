@@ -1,0 +1,47 @@
+# Example: a dedicated AES67 egress network, SEPARATE from the REAC zones.
+#
+# WHY: REAC is ~48 Mbit/s of broadcast per zone (96k even more) and is the
+# timing-critical clock domain; the rig isolates it on its own VLANs/ports
+# (lan1/2/3 = VLAN 11/12/13). AES67 multicast (~5 Mbit/s/stream) must NOT share
+# those segments — keep the REAC clock domain clean and give receivers a normal
+# LAN to subscribe on.
+#
+# HOW (no daemon change): the daemon sends each stream's RTP to the multicast
+# group in its UCI `mcast_addr`. The kernel routes that UDP out whichever
+# interface owns the route to the group. So: put the AES67 multicast subnet on a
+# dedicated `aes67` bridge, and AES67 leaves the router only on that segment.
+# The `aes67` bridge can carry a Wi-Fi SSID and/or a reserved ethernet port.
+#
+# Append to /etc/config/network (adjust addrs/ports to taste):
+
+config interface 'aes67'
+	option proto 'static'
+	option type 'bridge'
+	option ipaddr '10.67.0.1'     # router's address on the AES67 segment
+	option netmask '255.255.255.0'
+	# Reserve a physical port for a wired AES67 receiver/uplink (optional):
+	# list ports 'lan5'
+
+# Ensure the AES67 multicast group is reached via this interface. With the
+# group (e.g. 239.69.0.0/24) on the aes67 subnet, normal routing sends it out
+# 'aes67'. If needed, pin it explicitly with a route:
+#config route
+#	option interface 'aes67'
+#	option target '239.69.0.0'
+#	option netmask '255.255.255.0'
+
+# --- /etc/config/wireless: a dedicated SSID bridged onto 'aes67' (optional) ---
+#config wifi-iface 'aes67_ap'
+#	option device 'radio0'
+#	option network 'aes67'
+#	option mode 'ap'
+#	option ssid 'AES67'
+#	option encryption 'sae'
+#	option key 'change-me'
+#
+# Then set each reac-aes67 stream's mcast_addr into 239.69.0.0/24 so egress
+# lands on the aes67 segment, e.g. 239.69.0.1:5004 (REAC-A), 239.69.0.2 (B), ...
+#
+# IMPORTANT: do NOT bridge 'aes67' with the REAC capture interfaces. REAC is
+# captured raw (AF_PACKET) on lan1/2/3; AES67 is produced on 'aes67'. They are
+# different L2 domains by design.

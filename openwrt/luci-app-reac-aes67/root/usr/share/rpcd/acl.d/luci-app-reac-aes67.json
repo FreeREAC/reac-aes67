@@ -1,0 +1,18 @@
+{
+	"luci-app-reac-aes67": {
+		"description": "Grant access to REAC → AES67 bridge config and status",
+		"read": {
+			"uci": [ "reac-aes67" ],
+			"ubus": {
+				"reac-aes67.*": [ "status" ],
+				"service": [ "list" ]
+			}
+		},
+		"write": {
+			"uci": [ "reac-aes67" ],
+			"ubus": {
+				"service": [ "event" ]
+			}
+		}
+	}
+}

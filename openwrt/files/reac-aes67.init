@@ -1,0 +1,100 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+
+# procd init for reac-aes67: one daemon instance per enabled REAC stream.
+USE_PROCD=1
+START=95
+STOP=10
+
+PROG=/usr/bin/reac-aes67
+
+validate_stream_section() {
+	uci_validate_section reac-aes67 stream "$1" \
+		'enabled:bool:1' \
+		'name:string' \
+		'iface:string' \
+		'rate:or("48000","96000"):48000' \
+		'mcast_addr:host' \
+		'mcast_port:port:5004' \
+		'payload_type:range(96,127):97' \
+		'ssrc:string:11223344' \
+		'ttl:range(1,255):1' \
+		'plc_xfade:uinteger:0' \
+		'plc_fade_pkts:uinteger:0' \
+		'sap:bool:1' \
+		'egress_iface:string' \
+		'profile:or("aes67","dante"):aes67' \
+		'aes67_base:host' \
+		'rtp_port:port:5004' \
+		'ch_per_flow:range(1,40):8' \
+		'gmid:string' \
+		'ptp_domain:range(0,127):0'
+}
+
+start_stream() {
+	local cfg="$1"
+	local enabled name iface rate mcast_addr mcast_port payload_type ssrc ttl plc_xfade plc_fade_pkts sap egress_iface
+	local profile aes67_base rtp_port ch_per_flow gmid ptp_domain
+
+	validate_stream_section "$cfg" || {
+		logger -t reac-aes67 "stream $cfg failed validation, skipping"
+		return 1
+	}
+	[ "$enabled" = "1" ] || return 0
+	[ -n "$iface" ] || { logger -t reac-aes67 "stream $cfg has no iface"; return 1; }
+
+	if [ "$profile" = "dante" ]; then
+		# Dante-interop: 48k, 1ms, <=8-ch flows from aes67_base, RFC7273 SDP.
+		# Needs the router PTPv2-slaved to the Dante grandmaster (see ptp4l-dante.conf).
+		[ -n "$aes67_base" ] || { logger -t reac-aes67 "dante stream $cfg has no aes67_base"; return 1; }
+		procd_open_instance "reac-$cfg"
+		procd_set_param command "$PROG" \
+			--profile dante \
+			--listen "$iface" \
+			--aes67-base "$aes67_base" \
+			--rtp-port "${rtp_port:-5004}" \
+			--ch-per-flow "${ch_per_flow:-8}" \
+			--ptp-domain "${ptp_domain:-0}" \
+			--pt "$payload_type" \
+			--ssrc "$ssrc" \
+			--ttl "$ttl" \
+			--name "${name:-$cfg}"
+		[ -n "$gmid" ] && procd_append_param command --gmid "$gmid"
+	else
+		[ -n "$mcast_addr" ] || { logger -t reac-aes67 "stream $cfg has no mcast_addr"; return 1; }
+		procd_open_instance "reac-$cfg"
+		procd_set_param command "$PROG" \
+			--listen "$iface" \
+			--udp "${mcast_addr}:${mcast_port}" \
+			--rate "$rate" \
+			--pt "$payload_type" \
+			--ssrc "$ssrc" \
+			--ttl "$ttl" \
+			--name "${name:-$cfg}"
+		[ "${plc_xfade:-0}" -gt 0 ] && procd_append_param command --plc-xfade "$plc_xfade"
+		[ "${plc_fade_pkts:-0}" -gt 0 ] && procd_append_param command --plc-fade "$plc_fade_pkts"
+	fi
+	[ "${sap:-1}" = "1" ] || procd_append_param command --no-sap
+	[ -n "$egress_iface" ] && procd_append_param command --iface "$egress_iface"
+	procd_set_param respawn 3600 5 0
+	procd_set_param stderr 1
+	# raw AF_PACKET capture needs CAP_NET_RAW
+	procd_set_param capabilities /etc/capabilities/reac-aes67.json
+	procd_close_instance
+}
+
+start_service() {
+	local genabled
+	config_load reac-aes67
+	config_get_bool genabled global enabled 1
+	[ "$genabled" = "1" ] || {
+		logger -t reac-aes67 "globally disabled"
+		return 0
+	}
+	config_foreach start_stream stream
+}
+
+service_triggers() {
+	procd_add_reload_trigger reac-aes67
+}

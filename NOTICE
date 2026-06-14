@@ -1,0 +1,65 @@
+reac-aes67
+Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+
+Licensed under GPL-3.0-or-later (see LICENSE).
+
+A C daemon plus OpenWrt/LuCI packaging that bridges a Roland REAC
+(EtherType 0x8819) audio stream to an AES67 RTP-L24 multicast stream.
+
+## Third-party code and references
+
+### Derived code (carries upstream copyright)
+
+Some files in this project are derivative works of GPL-3.0-licensed
+upstream code. Per the GPL, the original authors' copyright is retained
+alongside this project's copyright, and the combined work is licensed
+under GPL-3.0-or-later.
+
+- norihiro/obs-h8819-source -- GPL-3.0-or-later
+  Copyright (C) 2022 Norihiro Kamae <norihiro@nagater.net>
+  The REAC audio de-interleave (`convert_to_pcm24lep` in
+  obs-h8819 `src/capdev-proc.c`) was adapted into this project. The
+  per-channel even/odd byte mapping and stride logic are a near-verbatim
+  adaptation, generalized from the hardcoded 40-channel/12-sample layout
+  to this project's `reac_mode` descriptor. Derived files:
+    - `src/reac_decode.c`     (the de-interleave; see source comment at the
+                               function header)
+    - `src/reac_decode.h`     (the derivative decode API)
+    - `tests/cross_verify.py` (a Python port of the same de-interleave,
+                               used as an independent cross-check)
+
+- per-gron/reacdriver -- GPL-3.0
+  Copyright held by per-gron (original REAC reverse-engineering).
+  The REAC wire framing -- EtherType 0x8819, 1492-byte frame, 16-bit
+  little-endian L2 counter at payload bytes 0-1, and the 0xC2 0xEA end
+  marker -- was originally documented by this project (transitively via
+  obs-h8819, which builds on the same reverse-engineering). These are the
+  framing facts referenced throughout the REAC-facing code
+  (`src/reac_mode.h`, `src/reac_decode.c`, `src/reac_capture.c`).
+
+### Protocol and standard facts referenced (no copyright claim)
+
+The remaining REAC-facing and AES67-facing code is an original
+implementation of public standards and documented formats. The facts
+below are unprotected specification/manual data; no third-party code is
+copied and no third-party copyright attaches.
+
+- IETF RFC 3550 (RTP) -- the 12-byte RTP fixed header and the
+  timestamp-as-sample-count media-clock model
+  (`src/rtp_l24.{c,h}`, `src/media_clock.{c,h}`).
+- IETF RFC 2974 (SAP) -- the SAP announcement header and the well-known
+  AES67/SAP destination 224.0.0.56:9875 (`src/sap.{c,h}`).
+- IETF RFC 4566 (SDP) / AES67 -- the SDP body for an L24 multicast stream
+  (`src/sdp.{c,h}`).
+- AES67 / AES -- the L24 RTP payload format (interleaved big-endian
+  24-bit, frame-major) used by the RTP packetizer (`src/rtp_l24.{c,h}`).
+- Roland R-1000 Owner's Manual -- the clock-master behaviour and the
+  96 kHz channel-halving facts (40ch @ 48k / 20ch @ 96k) encoded in
+  `src/reac_mode.h`. Manual facts only; no code.
+- libpcap classic savefile format -- the file-format facts
+  (magic 0xA1B2C3D4 / byte-swapped 0xD4C3B2A1, 24-byte global header,
+  16-byte per-packet header) implemented by `src/pcap_source.{c,h}`.
+
+The corresponding unit tests under `tests/` assert against these same
+standards and against a real REAC capture fixture; they are original test
+code (except `tests/cross_verify.py`, listed under Derived code above).

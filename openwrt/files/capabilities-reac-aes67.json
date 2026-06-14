@@ -1,0 +1,8 @@
+{
+	"@reac-aes67": {
+		"bounding": [ "net_raw" ],
+		"effective": [ "net_raw" ],
+		"inheritable": [ "net_raw" ],
+		"permitted": [ "net_raw" ]
+	}
+}

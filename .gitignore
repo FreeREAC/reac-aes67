@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.o
+*.so
+build/
+capture-*/
+!tests/fixtures/*.pcap
+build/
+.build/sdk/
+.build/out/
+.build/*.tar.zst
+.build/**/sdk/
+.build/**/out/
+.build/**/*.tar.zst
+.build/
+# vendored at build time from tools/reac_repacer.c — never commit (stale-source trap)
+openwrt/reac-repacer/src/
