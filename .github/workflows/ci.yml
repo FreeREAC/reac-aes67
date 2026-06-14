@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch libreac (shared lib the tools build against)
+        run: git clone --depth 1 https://github.com/FreeREAC/libreac ../libreac
       - name: Build and test
         run: make test
       - name: Cross-tool verification (C decoder vs Python reference)
