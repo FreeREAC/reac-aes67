@@ -29,6 +29,10 @@ GL-MT6000 (`mediatek/filogic`) is still pending.
 [Configuration](docs/CONFIGURATION.md) ·
 [Examples](docs/EXAMPLES.md).
 
+**Recording a live wired REAC network?** Tap the desk's REAC output and record all 40
+channels without disturbing the link — see [Examples → recipe (f)](docs/EXAMPLES.md).
+The bridge only ever *listens* on REAC (no TX, no handshake), so it can't interfere.
+
 ```sh
 make test     # 39 tests against the real reac-tools fixture
 make verify   # C decoder vs independent Python reference — sample-for-sample

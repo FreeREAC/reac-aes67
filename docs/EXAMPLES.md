@@ -362,6 +362,65 @@ nonzero with a diff on mismatch.
 
 ---
 
+## (f) Passively record a live *wired* REAC network (non-intrusive tap)
+
+**Goal.** Record the channels on an existing **wired** mixer↔stagebox REAC link — the
+desk's REAC output — **without disturbing it**. This is safe by construction: in
+`--listen` mode the daemon opens an `AF_PACKET` `SOCK_RAW` socket and **transmits no
+REAC frame** — it does no split handshake, announces nothing, and is invisible to the
+desk. The master broadcasts to `ff:ff:ff:ff:ff:ff` and a receiver is "connected" by
+frame length alone (no handshake — see the
+[wire-format reference](https://github.com/FreeREAC/reac-protocol/blob/main/wire-format.md)),
+so a passive tap sees all the audio while staying invisible. The only thing the daemon
+sends is the AES67 multicast, on a separate network.
+
+**Get a copy of the stream onto a NIC** — pick the least intrusive tap your rig allows:
+
+- **Desk REAC split / mirror output** (best): patch the recorder's NIC straight into a
+  dedicated REAC split port on the desk or stagebox. The live link is never touched.
+- **Passive 100-Mbit Ethernet TAP**: an inline tap copies the REAC line to a monitor
+  port → recorder. A true passive tap doesn't buffer, so the link passes through
+  untouched.
+- **Unmanaged 100BASE-TX switch**: mixer → switch → stagebox, a 3rd port → recorder.
+  REAC is broadcast, so the switch floods it to the recorder. Use a clean full-duplex
+  100M unmanaged switch — REAC is phase-strict, so avoid a store-and-forward unit that
+  adds jitter. (A managed switch's mirror/SPAN port works too; mirroring is copy-only.)
+
+What you capture: the **downstream** broadcast (mixer → stagebox) carries whatever the
+desk routes to that REAC output — clean, labelled, 40 channels. The upstream return
+(stagebox preamps → desk, unicast to the desk's MAC) is also on the wire, but its
+channel map is FPGA-scrambled, so record via a desk **REAC output**.
+
+**Keep the two networks apart** (same rule as recipe (b)): run the recorder with two
+interfaces — one is the REAC tap (`--listen` reads it, nothing leaves it), the other
+carries AES67 to the DAW. Egress is route-table-driven, so putting the `--udp` group on
+the AES67 subnet keeps the recording multicast off the REAC wire.
+
+**Commands.**
+
+```sh
+# eth0 = the REAC tap (split port / passive TAP / unmanaged-switch port)
+sudo build/reac-aes67 --listen eth0 \
+  --udp 239.69.0.1:5004 --rate 48000 \      # 48000 or 96000 — MATCH the desk; not auto-detected
+  --name REAC-REC --pt 97 --ssrc 11223344 --ttl 1
+```
+
+Point the DAW at it via SDP (recipe (d)) or a PipeWire RTP source (recipe (a)). On
+OpenWrt the same thing is a `config stream` UCI section with the tap `iface` + the AES67
+group, with AES67 on a dedicated `aes67` bridge (recipe (b)).
+
+**Expected result.** A 40-channel AES67 `L24/<rate>/40` stream the DAW records, with the
+wired mixer↔stagebox link completely unaffected — the desk never sees the recorder.
+
+> **Caveats.**
+> - `--rate` must match the desk (48 k or 96 k); a wrong rate decodes as garbage.
+> - Don't insert a jittery switch into the *live* link — prefer the desk split output or
+>   a passive TAP. The recorder's own link quality doesn't matter; only the
+>   mixer↔stagebox path does.
+> - 96 kHz REAC nearly fills 100BASE-TX — don't add load to that wire.
+
+---
+
 ## Quick reference — modes & precedence
 
 Mode is chosen by precedence in `main()`, not a single `--mode` flag. Order:
@@ -380,6 +439,7 @@ So a flag can be silently shadowed (e.g. `--print-sdp` wins over
 | (e) count | `--pcap <CAPTURE> --count-rtp` |
 | (e) dump | `--pcap <CAPTURE> --dump-samples` |
 | (e) verify | `make verify` / `python3 tests/cross_verify.py build/reac-aes67 <CAPTURE>` |
+| (f) passive record | `--listen <REAC_TAP_IFACE> --udp <MCAST_GROUP>:<PORT> --rate R` — same flags as (a); tap a live wired link non-intrusively via a desk split port / passive TAP / unmanaged switch |
 
 **CLI defaults:** `--rate 48000`, `--pt 97`, `--ssrc 11223344` (hex),
 `--ttl 1`, `--name REAC`, `--origin 0.0.0.0`, `--tone-freq 440`,
