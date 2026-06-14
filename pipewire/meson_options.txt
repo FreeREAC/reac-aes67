@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+
+option('reac_aes67', type : 'string', value : '..',
+  description : 'Path to the reac-aes67 checkout whose src/{reac_decode,reac_capture,pcap_source}.c we reuse (the plain-LE decode core + AF_PACKET + pcap reader). Default is a sibling FreeREAC/reac-aes67 checkout.')

@@ -1,0 +1,13 @@
+[wrap-git]
+url = https://github.com/FreeREAC/libreac.git
+revision = main
+depth = 1
+
+# Upstream libreac ships a hand Makefile, not a meson build. We drop a small
+# meson.build into the checkout via patch_directory so it builds as a subproject
+# and exposes `libreac_dep`. The patch touches NO upstream source — only adds a
+# build file under subprojects/packagefiles/libreac/.
+patch_directory = libreac
+
+[provide]
+libreac = libreac_dep

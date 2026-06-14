@@ -1,0 +1,14 @@
+# build dirs
+/build/
+/builddir/
+
+# meson subproject checkouts (fetched by the wrap; packagefiles are tracked)
+/subprojects/libreac/
+/subprojects/*/
+!/subprojects/packagefiles/
+!/subprojects/*.wrap
+
+# editor / scratch
+*.o
+*.a
+*.swp
