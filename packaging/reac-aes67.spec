@@ -13,20 +13,21 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  systemd-rpm-macros
+BuildRequires:  libreac-devel
+BuildRequires:  pkgconfig
 
 %description
 reac-aes67 captures a Roland REAC stream off the wire (raw AF_PACKET, EtherType
 0x8819), decodes the 24-bit audio, and re-emits it as AES67 / RTP-L24 multicast
 with optional SAP/SDP discovery (and a --profile dante interop mode). It is the
 same bridge that ships as an OpenWrt apk; this Fedora build omits the OpenWrt
-ubus stats interface (built without -DHAVE_UBUS). The source tarball vendors
-libreac so the build is self-contained.
+ubus stats interface (built without -DHAVE_UBUS) and links the system libreac.
 
 %prep
 %autosetup -n %{name}-%{version}
 
 %build
-make LIBREAC=third_party/libreac
+make LIBREAC_SYSTEM=1
 
 %install
 install -Dm0755 build/reac-aes67 %{buildroot}%{_bindir}/reac-aes67

@@ -22,14 +22,25 @@ LIBREAC ?= ../libreac
 SRCDIR   = src
 TESTDIR  = tests
 BUILDDIR = build
-INC      = -I$(SRCDIR) -I$(LIBREAC)/include
+# LIBREAC_SYSTEM=1 links the installed libreac via pkg-config (-lreac, system
+# header) instead of compiling the vendored sibling source in. Used by the Fedora
+# rpm. The default native build and the OpenWrt build leave it unset and compile
+# $(LIBREAC)/src/reac.c in, so they are unaffected.
+LDLIBS  ?= -lm
+ifeq ($(LIBREAC_SYSTEM),1)
+  INC         = -I$(SRCDIR) $(shell pkg-config --cflags libreac)
+  LIBREAC_SRC =
+  LDLIBS     += $(shell pkg-config --libs libreac)
+else
+  INC         = -I$(SRCDIR) -I$(LIBREAC)/include
+  LIBREAC_SRC = $(LIBREAC)/src/reac.c
+endif
 
 CORE_SRCS = $(SRCDIR)/reac_decode.c $(SRCDIR)/media_clock.c $(SRCDIR)/pcap_source.c \
             $(SRCDIR)/rtp_l24.c $(SRCDIR)/plc.c $(SRCDIR)/pipeline.c \
             $(SRCDIR)/aes67_send.c $(SRCDIR)/reac_capture.c $(SRCDIR)/sdp.c $(SRCDIR)/sap.c \
             $(SRCDIR)/ubus_stats.c $(SRCDIR)/tone.c $(SRCDIR)/ptp_clock.c \
-            $(SRCDIR)/packetizer.c $(LIBREAC)/src/reac.c
-LDLIBS  ?= -lm
+            $(SRCDIR)/packetizer.c $(LIBREAC_SRC)
 TEST_SRCS = $(wildcard $(TESTDIR)/test_*.c)
 TEST_BINS = $(patsubst $(TESTDIR)/%.c,$(BUILDDIR)/%,$(TEST_SRCS))
 DAEMON    = $(BUILDDIR)/reac-aes67
