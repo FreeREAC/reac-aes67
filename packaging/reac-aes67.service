@@ -1,0 +1,20 @@
+[Unit]
+Description=Roland REAC to AES67 bridge (reac-aes67)
+Documentation=https://github.com/FreeREAC/reac-aes67
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Edit /etc/reac-aes67/reac-aes67.conf for the interface + AES67 destination.
+EnvironmentFile=/etc/reac-aes67/reac-aes67.conf
+# ${...} = single value; $EXTRA_ARGS word-splits (systemd) for optional flags.
+ExecStart=/usr/bin/reac-aes67 --listen ${REAC_IFACE} --udp ${AES67_DEST} --rate ${REAC_RATE} $EXTRA_ARGS
+# raw 0x8819 capture without running as root
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

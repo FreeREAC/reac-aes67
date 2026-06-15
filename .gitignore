@@ -15,3 +15,5 @@ build/
 .build/
 # vendored at build time from tools/reac_repacer.c — never commit (stale-source trap)
 openwrt/reac-repacer/src/
+
+reac-aes67-*.tar.gz
